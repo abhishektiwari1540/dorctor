@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      Role
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  patient   Patient?
+  partner   Partner?
+}
+
+model Patient {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  firstName   String
+  lastName    String
+  dateOfBirth DateTime
+  phone       String?
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Partner {
+  id             String  @id @default(uuid())
+  userId         String  @unique
+  firstName      String
+  lastName       String
+  specialization String
+  licenseNumber  String  @unique
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum Role {
+  PATIENT
+  PARTNER
+}

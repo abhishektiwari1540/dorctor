@@ -1,0 +1,9 @@
+model Partner {
+  id            String  @id @default(uuid())
+  userId        String  @unique
+  firstName     String
+  lastName      String
+  specialization String
+  licenseNumber String  @unique
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

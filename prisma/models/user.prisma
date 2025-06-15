@@ -1,0 +1,15 @@
+model User {
+  id        String   @id @default(uuid()) // UUID as per your choice
+  email     String   @unique
+  password  String
+  role      Role
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  patient   Patient? // Optional relation to Patient
+  Partner    Partner?  // Optional relation to Partner
+}
+
+enum Role {
+  PATIENT
+  PARTNER
+}

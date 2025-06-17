@@ -5,11 +5,11 @@ import { User } from "./entities/user.entity";
 
 export const AppDataSource = new DataSource({
   type: "mysql",
-  host: "localhost",
+  host: "auth-db1294.hstgr.io",
   port: 3306,
-  username: "root",
-  password: "",
-  database: "patient_planet",
+  username: "u102942340_Doctor",
+  password: "Doctor@123#@123",
+  database: "u102942340_Doctor",
   synchronize: false,
   logging: true,
   entities: [User],

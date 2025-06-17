@@ -7,15 +7,16 @@ import { UsersModule } from './users/users.module';
   imports: [
     TypeOrmModule.forRoot({
       type: 'mysql',
-      host: 'localhost',
+      host: 'auth-db1294.hstgr.io', // avoid 'localhost'
       port: 3306,
-      username: 'root',
-      password: '',
-      database: 'patient_planet',
+      username: 'u102942340_Doctor',
+      password: 'Doctor@123#@123',
+      database: 'u102942340_Doctor',
       entities: [User],
       synchronize: true,
+      logging: true,
     }),
-    UsersModule,
+    TypeOrmModule.forFeature([User]),
   ],
 })
 export class AppModule {}

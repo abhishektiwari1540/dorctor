@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { testDBConnection } from './config/db.config';
+import { Request, Response } from 'express';
 
 async function bootstrap() {
   // Test database connection first
@@ -9,7 +10,11 @@ async function bootstrap() {
    const app = await NestFactory.create(AppModule);
      app.enableCors();
   app.setGlobalPrefix('api');
-  
+  const server = app.getHttpAdapter();
+  server.get('/', (req: Request, res: Response) => {
+    res.send('Hello World!');
+  });
+
   // Explicitly specify 'localhost' as the host
   await app.listen(3000, 'localhost');
   

@@ -88,6 +88,7 @@ router.delete(
 router.post(
   "/send-otp",
   wrapAsync(async (req, res) => {
+    console.log(req,"gggg================>")
     const result = await UsersController.prototype.sendOtp(req.body);
     res.json(result);
   })

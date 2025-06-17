@@ -1,8 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { testDBConnection } from './config/db.config';
-import { Request, Response } from 'express';
-import router from './routes/user.routes';
 
 async function bootstrap() {
   // Test database connection first
@@ -10,21 +8,14 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
   app.enableCors();
-  // app.setGlobalPrefix('/api');
-  const server = app.getHttpAdapter();
-  server.use('/api/users', router);
-  server.get('/', (req: Request, res: Response) => {
-    res.send('Hello World!');
-  });
+  app.setGlobalPrefix('/api'); // Optional, for cleaner API routes like /api/users
 
-  // Explicitly specify 'localhost' as the host
+  // Start the server
   await app.listen(3000, 'localhost');
 
-  // Get the actual URL (works with any host binding)
+  // Log the app URL
   const url = await app.getUrl();
-  console.log(
-    `Application is running on: ${url.replace('[::1]', 'localhost')}`,
-  );
+  console.log(`Application is running on: ${url.replace('[::1]', 'localhost')}`);
 }
 
 bootstrap().catch((err) => {

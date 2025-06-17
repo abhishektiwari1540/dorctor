@@ -116,52 +116,41 @@ export class UsersController {
     }
   }
   @Post()
-  @UsePipes(new ValidationPipe())
-  async newUser(@Body() createUserDto: CreateUserDto) {
-    const userRepository = getRepository(User);
-    const { countryCode, phone, name, email, age, password, role } =
-      createUserDto;
+ @UsePipes(new ValidationPipe())
+async newUser(@Body() createUserDto: CreateUserDto) {
+  const userRepository = getRepository(User);
+  const { countryCode, phone, name, email, age, password, role } = createUserDto;
 
-    // First check if user exists by phone (only phone, not email)
-    let user = await userRepository.findOne({
-      where: { phone },
+  let user = await userRepository.findOne({ where: { phone } });
+  if (user) {
+    // Update existing user
+    user.countryCode = countryCode;
+    user.name = name;
+    user.email = email;
+    user.age = age;
+    user.password = password;
+    user.role = role;
+  } else {
+    // Create new user
+    user = userRepository.create({
+      countryCode,
+      phone,
+      name,
+      email,
+      age,
+      password,
+      role: role || UserRole.PATIENT,
     });
-
-    if (user) {
-      // UPDATE EXISTING USER
-      user.countryCode = countryCode;
-      user.name = name;
-      user.email = email;
-      user.age = age;
-      user.password = password;
-      user.role = role;
-    } else {
-      // CREATE NEW USER
-      user = new User();
-      user.countryCode = countryCode;
-      user.phone = phone;
-      user.name = name;
-      user.email = email;
-      user.age = age;
-      user.password = password;
-      user.role = role || UserRole.PATIENT;
-    }
-
-    // Validate before saving
-    const errors = await validate(user);
-    if (errors.length > 0) {
-      throw new BadRequestException(errors);
-    }
-
-    await userRepository.save(user);
-
-    return {
-      message: user.id
-        ? 'User updated successfully'
-        : 'User created successfully',
-      userId: user.id,
-    };
   }
+
+  await userRepository.save(user);
+
+  return {
+    message: user.id ? 'User updated successfully' : 'User created successfully',
+    userId: user.id,
+  };
+}
+
   @Patch(':id')
   async editUser(@Param('id') id: number, @Body() body: any) {
     const { name, email, age } = body;

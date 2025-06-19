@@ -7,7 +7,14 @@ async function bootstrap() {
   await testDBConnection();
 
   const app = await NestFactory.create(AppModule);
-  app.enableCors();
+app.enableCors({
+    origin: [
+      'http://localhost:3000',            // Local development
+      'https://dorctor-oac7.vercel.app'   // Your Vercel deployment
+    ],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
   app.setGlobalPrefix('/api'); // Optional, for cleaner API routes like /api/users
 
   // Start the server

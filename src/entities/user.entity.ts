@@ -31,11 +31,11 @@ export class User {
   @Column({ type: 'enum', enum: UserRole, default: UserRole.PATIENT })
   role: UserRole;
 
-  @Column({ nullable: true })
-  otp: string;
+  @Column({ type: 'varchar', length: 6,  nullable: true })
+  otp: string  | null;
 
-  @Column({ nullable: true })
-  otpExpireAt: Date;
+  @Column({type: 'datetime', nullable: true })
+  otpExpireAt: Date | null;
 
   @Column({ default: false })
   phoneVerified: boolean;

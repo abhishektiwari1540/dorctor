@@ -11,9 +11,11 @@ interface AuthenticatedRequest extends Request {
 export const checkRole = (allowedRoles: UserRole[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const authenticatedReq = req as AuthenticatedRequest;
+    
     if (!authenticatedReq.user || !allowedRoles.includes(authenticatedReq.user.role)) {
       return res.status(403).json({ message: 'Forbidden' });
     }
-    next();
+    
+    return next();
   };
 };

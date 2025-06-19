@@ -29,7 +29,7 @@ declare global {
 }
 
 // Middleware type fix
-type Middleware = (req: Request, res: Response, next: NextFunction) => void;
+// type Middleware = (req: Request, res: Response, next: NextFunction) => void;
 
 // Test route
 router.get('/test', (req: Request, res: Response) => {

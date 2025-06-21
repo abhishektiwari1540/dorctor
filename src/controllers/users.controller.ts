@@ -10,10 +10,11 @@ import {
   NotFoundException,
   UsePipes,
   ValidationPipe,
+  InternalServerErrorException,
 } from '@nestjs/common';
-import { getRepository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { User, UserRole } from '../entities/user.entity';
-import { validate } from 'class-validator';
 import {
   IsNotEmpty,
   IsString,
@@ -25,9 +26,9 @@ import {
   Max,
   IsOptional,
   IsEnum,
-  IsPhoneNumber,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+
+// DTO Classes
 export class SendOtpDto {
   @IsNotEmpty()
   @IsString()
@@ -66,39 +67,79 @@ export class CreateUserDto {
   @IsString()
   password: string;
 
+  @IsOptional()
   @IsEnum(UserRole)
-  role: UserRole;
+  role?: UserRole;
+}
+
+export class VerifyOtpDto {
+  @IsNotEmpty()
+  @IsString()
+  countryCode: string;
+
+  @IsNotEmpty()
+  @Matches(/^\d{10}$/, { message: 'Phone number must be exactly 10 digits' })
+  phone: string;
+
+  @IsNotEmpty()
+  @Matches(/^\d{6}$/, { message: 'OTP must be exactly 6 digits' })
+  otp: string;
+}
+
+export class UpdateUserDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(120)
+  age?: number;
 }
 
 @Controller('users')
 export class UsersController {
+  constructor(
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+  ) {}
+
   @Get('test')
   testRoute() {
-    return 'Test route working';
+    return { status: 'success', message: 'Test route working' };
   }
 
   @Get()
   async listAll() {
-    const userRepository = getRepository(User);
-    return await userRepository.find({
-      select: [
-        'id',
-        'countryCode',
-        'phone',
-        'name',
-        'email',
-        'age',
-        'role',
-        'createdAt',
-      ],
-    });
+    try {
+      const users = await this.userRepository.find({
+        select: [
+          'id',
+          'countryCode',
+          'phone',
+          'name',
+          'email',
+          'age',
+          'role',
+          'createdAt',
+          'phoneVerified',
+        ],
+      });
+      return { status: 'success', data: users };
+    } catch (error) {
+      throw new InternalServerErrorException('Failed to fetch users');
+    }
   }
 
   @Get(':id')
   async getOneById(@Param('id') id: number) {
-    const userRepository = getRepository(User);
     try {
-      return await userRepository.findOneOrFail({
+      const user = await this.userRepository.findOneOrFail({
         where: { id },
         select: [
           'id',
@@ -109,30 +150,28 @@ export class UsersController {
           'age',
           'role',
           'createdAt',
+          'phoneVerified',
         ],
       });
+      return { status: 'success', data: user };
     } catch (error) {
-      throw new Error('User not found');
+      throw new NotFoundException('User not found');
     }
   }
-  @Post()
- @UsePipes(new ValidationPipe())
-async newUser(@Body() createUserDto: CreateUserDto) {
-  const userRepository = getRepository(User);
-  const { countryCode, phone, name, email, age, password, role } = createUserDto;
 
-  let user = await userRepository.findOne({ where: { phone } });
-  if (user) {
-    // Update existing user
-    user.countryCode = countryCode;
-    user.name = name;
-    user.email = email;
-    user.age = age;
-    user.password = password;
-    user.role = role;
-  } else {
+  @Post()
+  @UsePipes(new ValidationPipe())
+  async createUser(@Body() createUserDto: CreateUserDto) {
+    const { countryCode, phone, name, email, age, password, role } = createUserDto;
+
+    // Check if user already exists
+    const existingUser = await this.userRepository.findOne({ where: { phone } });
+    if (existingUser) {
+      throw new BadRequestException('User with this phone number already exists');
+    }
+
     // Create new user
-    user = userRepository.create({
+    const user = this.userRepository.create({
       countryCode,
       phone,
       name,
@@ -141,90 +180,157 @@ async newUser(@Body() createUserDto: CreateUserDto) {
       password,
       role: role || UserRole.PATIENT,
     });
+
+    try {
+      await this.userRepository.save(user);
+      return {
+        status: 'success',
+        message: 'User created successfully',
+        data: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+        },
+      };
+    } catch (error) {
+      throw new InternalServerErrorException('Failed to create user');
+    }
   }
 
-  await userRepository.save(user);
-
-  return {
-    message: user.id ? 'User updated successfully' : 'User created successfully',
-    userId: user.id,
-  };
-}
-
   @Patch(':id')
-  async editUser(@Param('id') id: number, @Body() body: any) {
-    const { name, email, age } = body;
-    const userRepository = getRepository(User);
+  @UsePipes(new ValidationPipe())
+  async updateUser(@Param('id') id: number, @Body() updateUserDto: UpdateUserDto) {
+    try {
+      const user = await this.userRepository.findOneOrFail({ where: { id } });
 
-    const user = await userRepository.findOneOrFail({ where: { id } });
-    user.name = name;
-    user.email = email;
-    user.age = age;
+      // Update only provided fields
+      if (updateUserDto.name) user.name = updateUserDto.name;
+      if (updateUserDto.email) user.email = updateUserDto.email;
+      if (updateUserDto.age) user.age = updateUserDto.age;
 
-    const errors = await validate(user);
-    if (errors.length > 0) {
-      throw new Error('Validation failed');
+      await this.userRepository.save(user);
+      
+      return {
+        status: 'success',
+        message: 'User updated successfully',
+        data: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+        },
+      };
+    } catch (error) {
+      if (error.name === 'EntityNotFound') {
+        throw new NotFoundException('User not found');
+      }
+      throw new InternalServerErrorException('Failed to update user');
     }
-
-    return await userRepository.save(user);
   }
 
   @Delete(':id')
   async deleteUser(@Param('id') id: number) {
-    const userRepository = getRepository(User);
-    await userRepository.findOneOrFail({ where: { id } });
-    await userRepository.softDelete(id);
-    return { message: 'User deleted' };
+    try {
+      const result = await this.userRepository.softDelete(id);
+      if (result.affected === 0) {
+        throw new NotFoundException('User not found');
+      }
+      return { status: 'success', message: 'User deleted successfully' };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to delete user');
+    }
   }
 
   @Post('send-otp')
   @UsePipes(new ValidationPipe())
   async sendOtp(@Body() sendOtpDto: SendOtpDto) {
-    console.log('sendOtpDto:', sendOtpDto);
-
     const { countryCode, phone } = sendOtpDto;
-    console.log(countryCode, phone, 'phone===================>');
-
-    if (!phone) {
-      throw new BadRequestException('Phone number is required');
-    }
-
-    if (!/^\d{10}$/.test(phone)) {
-      throw new BadRequestException('Phone number must be exactly 10 digits');
-    }
-    const userRepository = getRepository(User);
-
-    // Check if user exists
-    let user = await userRepository.findOne({
-      where: { countryCode, phone },
-    });
-
-    // Generate OTP (fixed for testing, use random in production)
-    const otp = '111111'; // Replace with: Math.floor(100000 + Math.random() * 900000).toString()
+    
+    // Generate OTP (fixed for testing, in production use random)
+    const otp = '111111'; // In production: Math.floor(100000 + Math.random() * 900000).toString()
     const otpExpireAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiry
 
-    if (!user) {
-      // Create new user if not found
-      user = new User();
-      user.countryCode = countryCode;
-      user.phone = phone;
-      user.role = UserRole.PATIENT; // Default role
-      user.otp = otp;
-      user.otpExpireAt = otpExpireAt;
-      user.phoneVerified = false;
-    } else {
-      // Update existing user's OTP
-      user.otp = otp;
-      user.otpExpireAt = otpExpireAt;
-      user.phoneVerified = false;
+    try {
+      let user = await this.userRepository.findOne({ where: { countryCode, phone } });
+
+      if (!user) {
+        // Create new user if not found
+        user = this.userRepository.create({
+          countryCode,
+          phone,
+          role: UserRole.PATIENT,
+          otp,
+          otpExpireAt,
+          phoneVerified: false,
+          password: '', // Temporary empty password
+        });
+      } else {
+        // Update existing user's OTP
+        user.otp = otp;
+        user.otpExpireAt = otpExpireAt;
+        user.phoneVerified = false;
+      }
+
+      await this.userRepository.save(user);
+
+      return {
+        status: 'success',
+        message: 'OTP sent successfully',
+        data: {
+          userId: user.id,
+          isNewUser: !user.createdAt, // Better way to check if user was just created
+        },
+      };
+    } catch (error) {
+      throw new InternalServerErrorException('Failed to send OTP');
     }
+  }
 
-    await userRepository.save(user); // Save new or updated user
+  @Post('verify-otp')
+  @UsePipes(new ValidationPipe())
+  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
+    const { countryCode, phone, otp } = verifyOtpDto;
 
-    return {
-      message: 'OTP sent successfully',
-      userId: user.id, // Return user ID (useful for verification)
-      isNewUser: !user.id, // Optional: Indicates if user was just created
-    };
+    try {
+      const user = await this.userRepository.findOne({ 
+        where: { phone } 
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      if (!user.otp || user.otp !== otp) {
+        throw new BadRequestException('Invalid OTP');
+      }
+
+      if (!user.otpExpireAt || user.otpExpireAt < new Date()) {
+        throw new BadRequestException('OTP has expired');
+      }
+
+      // Update user as verified
+      user.phoneVerified = true;
+      user.otp = null;
+      user.otpExpireAt = null;
+      await this.userRepository.save(user);
+
+      return {
+        status: 'success',
+        message: 'Phone number verified successfully',
+        data: {
+          userId: user.id,
+          phoneVerified: true,
+        },
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to verify OTP');
+    }
   }
 }

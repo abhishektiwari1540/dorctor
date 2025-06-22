@@ -384,15 +384,15 @@ async loginUser(@Body() loginDto: LoginDto) {
     }
 
     // ✅ Generate JWT token
-    const payload = { sub: user.id, role: user.role };
-    const token = await this.jwtService.signAsync(payload); // ✅ fixed here
+    // const payload = { sub: user.id, role: user.role };
+    // const token = await this.jwtService.signAsync(payload); // ✅ fixed here
 
     return {
       status: 'success',
       message: 'Login successful',
       data: {
         user,
-        token,
+        token:"",
       },
     };
   } catch (error) {

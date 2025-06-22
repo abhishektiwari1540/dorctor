@@ -360,54 +360,54 @@ export class UsersController {
     }
   }
 
-@Post('login')
-@UsePipes(new ValidationPipe())
-async loginUser(@Body() loginDto: LoginDto) {
-  const { identifier, password } = loginDto;
+  @Post('login')
+  @UsePipes(new ValidationPipe())
+  async loginUser(@Body() loginDto: LoginDto) {
+    const { identifier, password } = loginDto;
 
-  try {
-    const user = await this.userRepository.findOne({
-      where: [{ phone: identifier }, { email: identifier }],
-    });
+    try {
+      const user = await this.userRepository.findOne({
+        where: [{ phone: identifier }, { email: identifier }],
+      });
 
-    if (!user) {
-      throw new NotFoundException('User not found with this phone or email');
+      if (!user) {
+        throw new NotFoundException('User not found with this phone or email');
+      }
+
+      const isPhone = /^\d{10}$/.test(identifier);
+      if (isPhone && !user.phoneVerified) {
+        throw new BadRequestException('Phone number is not verified');
+      }
+
+      // Replace with bcrypt.compare if password is hashed
+      const isMatch = user.password === password;
+      if (!isMatch) {
+        throw new BadRequestException('Invalid password');
+      }
+
+      // ✅ Generate JWT token
+      const payload = { sub: user.id, role: user.role };
+      // const token = checkJwt(payload);
+
+
+      return {
+        status: 'success',
+        message: 'Login successful',
+        data: {
+          user,
+          token:"",
+        },
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Login failed');
     }
-
-    const isPhone = /^\d{10}$/.test(identifier);
-    if (isPhone && !user.phoneVerified) {
-      throw new BadRequestException('Phone number is not verified');
-    }
-
-    // Replace with bcrypt.compare if password is hashed
-    const isMatch = user.password === password;
-    if (!isMatch) {
-      throw new BadRequestException('Invalid password');
-    }
-
-    // ✅ Generate JWT token
-    const payload = { sub: user.id, role: user.role };
-    const token = checkJwt(payload);
-
-
-    return {
-      status: 'success',
-      message: 'Login successful',
-      data: {
-        user,
-        token,
-      },
-    };
-  } catch (error) {
-    if (
-      error instanceof NotFoundException ||
-      error instanceof BadRequestException
-    ) {
-      throw error;
-    }
-    throw new InternalServerErrorException('Login failed');
   }
-}
 
 
 }

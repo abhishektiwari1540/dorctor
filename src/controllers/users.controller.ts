@@ -15,7 +15,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole } from '../entities/user.entity';
-import { JwtService } from '@nestjs/jwt';
+import {checkJwt} from "../middlewares/checkJwt"
 import {
   IsNotEmpty,
   IsString,
@@ -28,6 +28,8 @@ import {
   IsOptional,
   IsEnum,
 } from 'class-validator';
+
+import { JwtService } from '@nestjs/jwt';
 
 // DTO Classes
 export class SendOtpDto {
@@ -358,7 +360,7 @@ export class UsersController {
     }
   }
 
- @Post('login')
+@Post('login')
 @UsePipes(new ValidationPipe())
 async loginUser(@Body() loginDto: LoginDto) {
   const { identifier, password } = loginDto;
@@ -385,14 +387,15 @@ async loginUser(@Body() loginDto: LoginDto) {
 
     // ✅ Generate JWT token
     const payload = { sub: user.id, role: user.role };
-    const token = await this.jwtService.signAsync(payload); // ✅ fixed here
+    const token = checkJwt(payload);
+
 
     return {
       status: 'success',
       message: 'Login successful',
       data: {
         user,
-       token,
+        token,
       },
     };
   } catch (error) {
@@ -405,5 +408,6 @@ async loginUser(@Body() loginDto: LoginDto) {
     throw new InternalServerErrorException('Login failed');
   }
 }
+
 
 }

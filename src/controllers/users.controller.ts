@@ -28,8 +28,6 @@ import {
   IsEnum,
 } from 'class-validator';
 
-import { JwtService } from '@nestjs/jwt';
-
 // DTO Classes
 export class SendOtpDto {
   @IsNotEmpty()

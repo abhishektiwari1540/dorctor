@@ -15,6 +15,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole } from '../entities/user.entity';
+import { JwtService } from '@nestjs/jwt';
 import {
   IsNotEmpty,
   IsString,
@@ -102,6 +103,16 @@ export class UpdateUserDto {
   age?: number;
 }
 
+export class LoginDto {
+  @IsNotEmpty()
+  @IsString()
+  identifier: string; // can be email or phone
+
+  @IsNotEmpty()
+  @IsString()
+  password: string;
+}
+
 @Controller('users')
 export class UsersController {
   constructor(
@@ -162,12 +173,17 @@ export class UsersController {
   @Post()
   @UsePipes(new ValidationPipe())
   async createUser(@Body() createUserDto: CreateUserDto) {
-    const { countryCode, phone, name, email, age, password, role } = createUserDto;
+    const { countryCode, phone, name, email, age, password, role } =
+      createUserDto;
 
     // Check if user already exists
-    const existingUser = await this.userRepository.findOne({ where: { phone } });
+    const existingUser = await this.userRepository.findOne({
+      where: { phone },
+    });
     if (existingUser) {
-      throw new BadRequestException('User with this phone number already exists');
+      throw new BadRequestException(
+        'User with this phone number already exists',
+      );
     }
 
     // Create new user
@@ -201,7 +217,10 @@ export class UsersController {
 
   @Patch(':id')
   @UsePipes(new ValidationPipe())
-  async updateUser(@Param('id') id: number, @Body() updateUserDto: UpdateUserDto) {
+  async updateUser(
+    @Param('id') id: number,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
     try {
       const user = await this.userRepository.findOneOrFail({ where: { id } });
 
@@ -211,7 +230,7 @@ export class UsersController {
       if (updateUserDto.age) user.age = updateUserDto.age;
 
       await this.userRepository.save(user);
-      
+
       return {
         status: 'success',
         message: 'User updated successfully',
@@ -249,13 +268,15 @@ export class UsersController {
   @UsePipes(new ValidationPipe())
   async sendOtp(@Body() sendOtpDto: SendOtpDto) {
     const { countryCode, phone } = sendOtpDto;
-    
+
     // Generate OTP (fixed for testing, in production use random)
     const otp = '111111'; // In production: Math.floor(100000 + Math.random() * 900000).toString()
     const otpExpireAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiry
 
     try {
-      let user = await this.userRepository.findOne({ where: { countryCode, phone } });
+      let user = await this.userRepository.findOne({
+        where: { countryCode, phone },
+      });
 
       if (!user) {
         // Create new user if not found
@@ -296,8 +317,8 @@ export class UsersController {
     const { countryCode, phone, otp } = verifyOtpDto;
 
     try {
-      const user = await this.userRepository.findOne({ 
-        where: { phone } 
+      const user = await this.userRepository.findOne({
+        where: { phone },
       });
 
       if (!user) {
@@ -327,10 +348,62 @@ export class UsersController {
         },
       };
     } catch (error) {
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new InternalServerErrorException('Failed to verify OTP');
     }
   }
+
+ @Post('login')
+@UsePipes(new ValidationPipe())
+async loginUser(@Body() loginDto: LoginDto) {
+  const { identifier, password } = loginDto;
+
+  try {
+    const user = await this.userRepository.findOne({
+      where: [{ phone: identifier }, { email: identifier }],
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found with this phone or email');
+    }
+
+    const isPhone = /^\d{10}$/.test(identifier);
+    if (isPhone && !user.phoneVerified) {
+      throw new BadRequestException('Phone number is not verified');
+    }
+
+    // Replace with bcrypt.compare if password is hashed
+    const isMatch = user.password === password;
+    if (!isMatch) {
+      throw new BadRequestException('Invalid password');
+    }
+
+    // ✅ Generate JWT token
+    const payload = { sub: user.id, role: user.role };
+    const token = await this.jwtService.signAsync(payload); // ✅ fixed here
+
+    return {
+      status: 'success',
+      message: 'Login successful',
+      data: {
+        user,
+        token,
+      },
+    };
+  } catch (error) {
+    if (
+      error instanceof NotFoundException ||
+      error instanceof BadRequestException
+    ) {
+      throw error;
+    }
+    throw new InternalServerErrorException('Login failed');
+  }
+}
+
 }

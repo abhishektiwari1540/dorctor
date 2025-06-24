@@ -16,6 +16,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as jwt from 'jsonwebtoken';
 import { User, UserRole } from '../entities/user.entity';
+import { UserDetails } from "../entities/user-details.entity";
+
 import {
   IsNotEmpty,
   IsString,
@@ -118,6 +120,9 @@ export class UsersController {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+        @InjectRepository(UserDetails)
+    private readonly userDetailsRepository: Repository<UserDetails>,
+
   ) {}
 
   @Get('test')
@@ -412,5 +417,64 @@ const token = jwt.sign(payload, 'mySuperSecret123!', {
   }
 }
 
+ @Post('register-profile')
+  async registerProfile(@Body() data: any) {
+    const {
+      countryCode,
+      phone,
+      title,
+      gender,
+      language,
+      dob,
+      servicePin,
+      experience,
+      serviceArea,
+      aboutMe,
+    } = data;
+
+    let user = await this.userRepository.findOne({ where: { phone } });
+
+    if (!user) {
+      user = await this.userRepository.save({
+        countryCode,
+        phone,
+      });
+    }
+
+    let userDetails = await this.userDetailsRepository.findOne({
+      where: { user_id: user.id },
+    });
+
+    if (!userDetails) {
+      userDetails = this.userDetailsRepository.create({
+        user_id: user.id,
+        title,
+        gender,
+        language,
+        dob,
+        servicePin,
+        experience,
+        serviceArea,
+        aboutMe,
+      });
+    } else {
+      userDetails.title = title;
+      userDetails.gender = gender;
+      userDetails.language = language;
+      userDetails.dob = dob;
+      userDetails.servicePin = servicePin;
+      userDetails.experience = experience;
+      userDetails.serviceArea = serviceArea;
+      userDetails.aboutMe = aboutMe;
+    }
+
+    await this.userDetailsRepository.save(userDetails);
+
+    return {
+      message: 'Profile saved successfully',
+      user,
+      userDetails,
+    };
+  }
 
 }

@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
-import { UsersModule } from './users/users.module'; // ✅ Make sure this path is correct
+import { UsersModule } from './users/users.module'; 
+import { UserDetails } from './entities/user-details.entity';
 
 @Module({
   imports: [
@@ -12,11 +13,11 @@ import { UsersModule } from './users/users.module'; // ✅ Make sure this path i
       username: 'u102942340_Doctor',
       password: 'Doctor@123#@123',
       database: 'u102942340_Doctor',
-      entities: [User],
+      entities: [User,UserDetails],
       synchronize: true,
       logging: true,
     }),
-    UsersModule, // ✅ This registers your users controller and service
+    UsersModule,
   ],
 })
 export class AppModule {}

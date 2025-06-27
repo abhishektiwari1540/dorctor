@@ -11,11 +11,15 @@ export class User {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ nullable: true })
   countryCode: string;
 
   @Column()
   phone: string;
+
+  @Column({ nullable: true })
+profileImage: string;
+
 
   @Column({ nullable: true })
   name: string;
@@ -37,6 +41,8 @@ export class User {
 
   @Column({ type: 'varchar', length: 6, nullable: true })
   otp: string | null;
+
+  
 
   @Column({ type: 'datetime', nullable: true })
   otpExpireAt: Date | null;

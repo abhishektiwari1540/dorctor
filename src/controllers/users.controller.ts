@@ -13,11 +13,16 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
 import { Repository } from 'typeorm';
 import * as jwt from 'jsonwebtoken';
 import { User, UserRole } from '../entities/user.entity';
 import { UserDetails } from "../entities/user-details.entity";
-
+import { UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import {
   IsNotEmpty,
   IsString,
@@ -49,7 +54,7 @@ export class CreateUserDto {
 
   @IsNotEmpty()
   @IsString()
-  @Length(10, 10, { message: 'Phone must be 10 digits' })
+  @Length(8, 12, { message: 'Phone must be 10 digits' })
   phone: string;
 
   @IsNotEmpty()
@@ -104,6 +109,15 @@ export class UpdateUserDto {
   @Max(120)
   age?: number;
 }
+
+const profileImageStorage = diskStorage({
+  destination: './uploads/profile-images',
+  filename: (req, file, callback) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = extname(file.originalname);
+    callback(null, `${uniqueSuffix}${ext}`);
+  },
+});
 
 export class LoginDto {
   @IsNotEmpty()
@@ -175,50 +189,70 @@ export class UsersController {
     }
   }
 
-  @Post()
-  @UsePipes(new ValidationPipe())
-  async createUser(@Body() createUserDto: CreateUserDto) {
-    const { countryCode, phone, name, email, age, password, role } =
-      createUserDto;
-
-    // Check if user already exists
-    const existingUser = await this.userRepository.findOne({
-      where: { phone },
-    });
-    if (existingUser) {
-      throw new BadRequestException(
-        'User with this phone number already exists',
-      );
+ @Post()
+@UseInterceptors(FileInterceptor('profileImage', {
+  storage: profileImageStorage,
+  fileFilter: (req, file, callback) => {
+    if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
+      return callback(new Error('Only image files are allowed!'), false);
     }
+    callback(null, true);
+  },
+  limits: {
+    fileSize: 1024 * 1024 * 5,
+  },
+}))
+async createUser(
+  @UploadedFile() profileImage: Express.Multer.File,
+  @Body() body: any,
+) {
+  body.age = +body.age; // convert to number
+  const dto = plainToInstance(CreateUserDto, body);
+const errors = await validate(dto); // REMOVE transform: true
 
-    // Create new user
-    const user = this.userRepository.create({
-      countryCode,
-      phone,
-      name,
-      email,
-      age,
-      password,
-      role: role || UserRole.PATIENT,
-    });
-
-    try {
-      await this.userRepository.save(user);
-      return {
-        status: 'success',
-        message: 'User created successfully',
-        data: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          role: user.role,
-        },
-      };
-    } catch (error) {
-      throw new InternalServerErrorException('Failed to create user');
-    }
+  if (errors.length > 0) {
+    const messages = errors.flatMap(err =>
+      Object.values(err.constraints || {})
+    );
+    throw new BadRequestException(messages);
   }
+
+  const { countryCode, phone, name, email, age, password, role } = dto;
+
+  const existingUser = await this.userRepository.findOne({ where: { phone } });
+  if (existingUser) {
+    throw new BadRequestException('User with this phone number already exists');
+  }
+
+  const user = this.userRepository.create({
+    countryCode,
+    phone,
+    name,
+    email,
+    age,
+    password,
+    role: role || UserRole.PATIENT,
+    profileImage: profileImage?.filename,
+  });
+
+  try {
+    await this.userRepository.save(user);
+    return {
+      status: 'success',
+      message: 'User created successfully',
+      data: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        profileImage: user.profileImage,
+      },
+    };
+  } catch (error) {
+    throw new InternalServerErrorException('Failed to create user');
+  }
+}
 
   @Patch(':id')
   @UsePipes(new ValidationPipe())
@@ -269,52 +303,100 @@ export class UsersController {
     }
   }
 
+  // @Post('send-otp')
+  // @UsePipes(new ValidationPipe())
+  // async sendOtp(@Body() sendOtpDto: SendOtpDto) {
+  //   const { countryCode, phone } = sendOtpDto;
+
+  //   // Generate OTP (fixed for testing, in production use random)
+  //   const otp = '111111'; // In production: Math.floor(100000 + Math.random() * 900000).toString()
+  //   const otpExpireAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiry
+
+    
+  //   try {
+  //     let user = await this.userRepository.findOne({
+  //       where: { countryCode, phone },
+  //     });
+
+  //     if (!user) {
+  //       // Create new user if not found
+  //       user = this.userRepository.create({
+  //         countryCode,
+  //         phone,
+  //         role: UserRole.PATIENT,
+  //         otp,
+  //         otpExpireAt,
+  //         phoneVerified: false,
+  //         password: '', // Temporary empty password
+  //       });
+  //     } else {
+  //       // Update existing user's OTP
+  //       user.otp = otp;
+  //       user.otpExpireAt = otpExpireAt;
+  //       user.phoneVerified = false;
+  //     }
+
+  //     await this.userRepository.save(user);
+
+  //     return {
+  //       status: 'success',
+  //       message: 'OTP sent successfully',
+  //       data: {
+  //         userId: user.id,
+  //         isNewUser: !user.createdAt, // Better way to check if user was just created
+  //       },
+  //     };
+  //   } catch (error) {
+  //     throw new InternalServerErrorException('Failed to send OTP');
+  //   }
+  // }
   @Post('send-otp')
-  @UsePipes(new ValidationPipe())
-  async sendOtp(@Body() sendOtpDto: SendOtpDto) {
-    const { countryCode, phone } = sendOtpDto;
+@UsePipes(new ValidationPipe())
+async sendOtp(@Body() sendOtpDto: SendOtpDto) {
+  const { countryCode, phone } = sendOtpDto;
 
-    // Generate OTP (fixed for testing, in production use random)
-    const otp = '111111'; // In production: Math.floor(100000 + Math.random() * 900000).toString()
-    const otpExpireAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiry
+  // Generate OTP (fixed for testing, in production use random)
+  const otp = '111111'; // In production: Math.floor(100000 + Math.random() * 900000).toString()
+  const otpExpireAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiry
 
-    try {
-      let user = await this.userRepository.findOne({
-        where: { countryCode, phone },
-      });
+  try {
+    let user = await this.userRepository.findOne({
+      where: { countryCode, phone },
+    });
 
-      if (!user) {
-        // Create new user if not found
-        user = this.userRepository.create({
-          countryCode,
-          phone,
-          role: UserRole.PATIENT,
-          otp,
-          otpExpireAt,
-          phoneVerified: false,
-          password: '', // Temporary empty password
-        });
-      } else {
-        // Update existing user's OTP
-        user.otp = otp;
-        user.otpExpireAt = otpExpireAt;
-        user.phoneVerified = false;
-      }
-
-      await this.userRepository.save(user);
-
-      return {
-        status: 'success',
-        message: 'OTP sent successfully',
-        data: {
-          userId: user.id,
-          isNewUser: !user.createdAt, // Better way to check if user was just created
-        },
-      };
-    } catch (error) {
-      throw new InternalServerErrorException('Failed to send OTP');
+    if (user) {
+      // If user exists, throw BadRequestException
+      throw new BadRequestException('Phone number already exists. Please login using password');
     }
+
+    // Create new user if not found
+    user = this.userRepository.create({
+      countryCode,
+      phone,
+      role: UserRole.PATIENT,
+      otp,
+      otpExpireAt,
+      phoneVerified: false,
+      password: '', // Temporary empty password
+    });
+
+    await this.userRepository.save(user);
+
+    return {
+      status: 'success',
+      message: 'OTP sent successfully',
+      data: {
+        userId: user.id,
+        isNewUser: true,
+      },
+    };
+  } catch (error) {
+    if (error instanceof BadRequestException) {
+      throw error; // Re-throw the BadRequestException
+    }
+    throw new InternalServerErrorException('Failed to send OTP');
   }
+}
 
   @Post('verify-otp')
   @UsePipes(new ValidationPipe())

@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { testDBConnection } from './config/db.config';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   // Test database connection first
@@ -16,6 +17,8 @@ app.enableCors({
     credentials: true,
   });
   app.setGlobalPrefix('/api'); // Optional, for cleaner API routes like /api/users
+
+    app.useGlobalPipes(new ValidationPipe({ transform: true }));
 
   // Start the server
   await app.listen(8000, 'localhost');

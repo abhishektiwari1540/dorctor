@@ -58,30 +58,54 @@ router.get('/test', (req: Request, res: Response) => {
 //   })
 // );
 
-// // Create new user
-// router.post(
-//   "/",
-//   [
-//     checkJwt as Middleware,
-//     checkRole([UserRole.PARTNER]) as Middleware,
-//     body("countryCode").isString().isLength({ min: 1, max: 5 }),
-//     body("phone").isString().isLength({ min: 10, max: 15 }),
-//     body("name").optional().isString().isLength({ min: 2, max: 100 }),
-//     body("email").optional().isEmail(),
-//     body("age").optional().isInt({ min: 1, max: 120 }),
-//     body("password").optional().isLength({ min: 8 }),
-//     body("role").optional().isIn(Object.values(UserRole)),
-//   ],
-//   wrapAsync(async (req: Request, res: Response) => {
-//     const errors = validationResult(req);
-//     if (!errors.isEmpty()) {
-//       return res.status(400).json({ errors: errors.array() });
-//     }
-//     const result = await usersController.createUser(req.body);
-//     res.status(201).json(result);
-//   })
-// );
+// Create new user
+router.post(
+  "/",
+  [
+    body("countryCode").isString().isLength({ min: 1, max: 5 }),
+    body("phone").isString().isLength({ min: 10, max: 15 }),
+    body("name").optional().isString().isLength({ min: 2, max: 100 }),
+    body("email").optional().isEmail(),
+    body("age").optional().isInt({ min: 1, max: 120 }),
+    body("password").optional().isLength({ min: 8 }),
+    body("role").optional().isIn(Object.values(UserRole)),
+  ],
+  wrapAsync(async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    const result = await usersController.createUser(req.body);
+    res.status(201).json(result);
+  })
+);
 
+
+
+router.post(
+  "/register-profile",
+  [
+    body("countryCode").isString().isLength({ min: 1, max: 5 }),
+    body("phone").isString().isLength({ min: 10, max: 15 }),
+    body("title").optional().isString(),
+    body("gender").optional().isIn(["male", "female", "other"]),
+    body("language").optional().isString(),
+    body("dob").optional().isISO8601(),
+    body("servicePin").optional().isString(),
+    body("experience").optional().isInt({ min: 0 }),
+    body("serviceArea").optional().isString(),
+    body("aboutMe").optional().isString(),
+  ],
+  wrapAsync(async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const result = await usersController.registerProfile(req.body);
+    res.status(201).json(result);
+  })
+);
 // Delete user
 // router.delete(
 //   "/:id",

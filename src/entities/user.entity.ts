@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToOne } from 'typeorm';
+import { UserDetails } from './user-details.entity';
 
 export enum UserRole {
   PATIENT = 'patient',
@@ -10,11 +11,15 @@ export class User {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ nullable: true })
   countryCode: string;
 
   @Column()
   phone: string;
+
+  @Column({ nullable: true })
+profileImage: string;
+
 
   @Column({ nullable: true })
   name: string;
@@ -25,16 +30,21 @@ export class User {
   @Column({ nullable: true })
   age: number;
 
+  @Column({ nullable: true })
+  image: string;
+
   @Column()
   password: string;
 
   @Column({ type: 'enum', enum: UserRole, default: UserRole.PATIENT })
   role: UserRole;
 
-  @Column({ type: 'varchar', length: 6,  nullable: true })
-  otp: string  | null;
+  @Column({ type: 'varchar', length: 6, nullable: true })
+  otp: string | null;
 
-  @Column({type: 'datetime', nullable: true })
+  
+
+  @Column({ type: 'datetime', nullable: true })
   otpExpireAt: Date | null;
 
   @Column({ default: false })
@@ -42,4 +52,5 @@ export class User {
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
+
 }

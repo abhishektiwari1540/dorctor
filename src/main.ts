@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { testDBConnection } from './config/db.config';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   // Test database connection first
@@ -9,7 +10,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 app.enableCors({
     origin: [
-      'http://localhost:3000',            // Local development
+      'http://localhost:8000',            // Local development
       'https://dorctor-oac7.vercel.app'   // Your Vercel deployment
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
@@ -17,8 +18,10 @@ app.enableCors({
   });
   app.setGlobalPrefix('/api'); // Optional, for cleaner API routes like /api/users
 
+    app.useGlobalPipes(new ValidationPipe({ transform: true }));
+
   // Start the server
-  await app.listen(3000, 'localhost');
+  await app.listen(8000, 'localhost');
 
   // Log the app URL
   const url = await app.getUrl();

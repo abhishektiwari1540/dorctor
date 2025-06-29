@@ -3,7 +3,10 @@ import { body, validationResult } from "express-validator";
 import { UserRole } from "../entities/user.entity";
 import { UsersController } from "../controllers/users.controller";
 import { getRepository } from "typeorm";
+import { checkJwt } from '../middleware/checkJwt';
 import { User } from "../entities/user.entity";
+import { wrapAsync as asyncHandler } from '../utils/wrapAsync';
+
 
 const router = Router();
 
@@ -82,28 +85,42 @@ router.post(
 
 
 
+/**
+ * @route   POST /register-profile
+ * @desc    Register or update user profile
+ * @access  Protected (JWT required)
+ */
 router.post(
-  "/register-profile",
+  '/register-profile',
+  checkJwt,
   [
-    body("countryCode").isString().isLength({ min: 1, max: 5 }),
-    body("phone").isString().isLength({ min: 10, max: 15 }),
-    body("title").optional().isString(),
-    body("gender").optional().isIn(["male", "female", "other"]),
-    body("language").optional().isString(),
-    body("dob").optional().isISO8601(),
-    body("servicePin").optional().isString(),
-    body("experience").optional().isInt({ min: 0 }),
-    body("serviceArea").optional().isString(),
-    body("aboutMe").optional().isString(),
+    body('countryCode').optional().isString().isLength({ min: 1, max: 5 }),
+    body('phone').optional().isString().isLength({ min: 10, max: 15 }),
+    body('title').optional().isString(),
+    body('gender').optional().isIn(['male', 'female', 'other']),
+    body('language').optional().isString(),
+    body('dob').optional().isISO8601().withMessage('DOB must be a valid ISO8601 date'),
+    body('servicePin').optional().isString(),
+    body('experience').optional().isInt({ min: 0 }),
+    body('serviceArea').optional().isString(),
+    body('aboutMe').optional().isString(),
+    body('experience_year').optional().isString(),
   ],
   wrapAsync(async (req: Request, res: Response) => {
+    // Validate request body
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const result = await usersController.registerProfile(req.body);
-    res.status(201).json(result);
+    // Call controller with request body and user info from token
+    const result = await usersController.registerProfile(req.body, req.user);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Profile saved successfully',
+      data: result,
+    });
   })
 );
 // Delete user

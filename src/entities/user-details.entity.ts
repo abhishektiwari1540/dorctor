@@ -21,7 +21,8 @@ export class UserDetails {
 
   @Column({ nullable: true })
   language: string;
-
+@Column({ nullable: true })
+  experience_year: string;
   @Column({ type: 'date', nullable: true })
   dob: string;
 

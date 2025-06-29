@@ -220,9 +220,9 @@ const errors = await validate(dto); // REMOVE transform: true
   const { countryCode, phone, name, email, age, password, role } = dto;
 
   const existingUser = await this.userRepository.findOne({ where: { phone } });
-  if (existingUser) {
-    throw new BadRequestException('User with this phone number already exists');
-  }
+  // if (existingUser) {
+  //   throw new BadRequestException('User with this phone number already exists');
+  // }
 
   const user = this.userRepository.create({
     countryCode,

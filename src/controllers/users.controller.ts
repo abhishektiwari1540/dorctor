@@ -364,9 +364,22 @@ async sendOtp(@Body() sendOtpDto: SendOtpDto) {
       where: { countryCode, phone },
     });
 
-    if (user) {
-      // If user exists, throw BadRequestException
-      throw new BadRequestException('Phone number already exists. Please login using password');
+     if (user) {
+      // User exists, resend OTP and update expiry
+      user.otp = otp;
+      user.otpExpireAt = otpExpireAt;
+      user.phoneVerified = false;
+
+      await this.userRepository.save(user);
+
+      return {
+        status: 'success',
+        message: 'OTP sent successfully',
+        data: {
+          userId: user.id,
+          isNewUser: false,
+        },
+      };
     }
 
     // Create new user if not found
@@ -512,6 +525,7 @@ const token = jwt.sign(payload, 'mySuperSecret123!', {
       experience,
       serviceArea,
       aboutMe,
+      experience_year,
     } = data;
 
     let user = await this.userRepository.findOne({ where: { phone } });
@@ -538,6 +552,7 @@ const token = jwt.sign(payload, 'mySuperSecret123!', {
         experience,
         serviceArea,
         aboutMe,
+        experience_year,
       });
     } else {
       userDetails.title = title;
@@ -548,6 +563,7 @@ const token = jwt.sign(payload, 'mySuperSecret123!', {
       userDetails.experience = experience;
       userDetails.serviceArea = serviceArea;
       userDetails.aboutMe = aboutMe;
+      userDetails.experience_year = experience_year;
     }
 
     await this.userDetailsRepository.save(userDetails);

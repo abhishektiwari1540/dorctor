@@ -6,8 +6,9 @@ import { getRepository } from "typeorm";
 import { checkJwt } from '../middleware/checkJwt';
 import { User } from "../entities/user.entity";
 import { wrapAsync as asyncHandler } from '../utils/wrapAsync';
-import { existsSync } from "fs";
-import { join } from "path";
+
+import { existsSync } from 'fs';
+import { join } from 'path';
 const router = Router();
 
 // Create controller instance with dependencies
@@ -39,23 +40,6 @@ router.get('/test', (req: Request, res: Response) => {
   res.send('Test route working');
 });
 
-
-router.get('/temp/:filename', (req: Request, res: Response) => {
-  const { filename } = req.params;
-  const filePath = join('/tmp', filename);
-
-  if (!existsSync(filePath)) {
-    return res.status(404).json({ message: 'Image not found or has expired.' });
-  }
-
-  res.sendFile(filePath);
-});
-
-// // Error handler
-// router.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-//   console.error(err);
-//   res.status(500).json({ message: err.message });
-// });
 // Get all users
 // router.get(
 //   "/",

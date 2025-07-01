@@ -231,15 +231,13 @@ async createUser(
   } = dto;
 
   const trimmedPhone = String(phone).trim();
-
+  console.log(trimmedPhone,"trimmedPhonetrimmedPhone");
   // Find existing user by phone
   const existingUser = await this.userRepository.findOne({ where: { phone: trimmedPhone } });
-
+  console.log(existingUser,"existingUserexistingUserexistingUser");
   if (!existingUser) {
     throw new BadRequestException('User with this phone number does not exist');
   }
-
-  // Update user fields
   existingUser.countryCode = countryCode;
   existingUser.name = name;
   existingUser.email = email;
@@ -414,7 +412,7 @@ async sendOtp(@Body() sendOtpDto: SendOtpDto) {
 
     await this.userRepository.save(user);
 
-    
+
     return {
       status: 'success',
       message: 'OTP sent successfully',

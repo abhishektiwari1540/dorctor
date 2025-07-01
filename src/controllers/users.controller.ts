@@ -23,6 +23,11 @@ import { UseInterceptors, UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { join } from 'path';
+import { existsSync } from 'fs';
+import { Response } from 'express';
+import { Res } from '@nestjs/common';
+
 import {
   IsNotEmpty,
   IsString,
@@ -118,6 +123,8 @@ const profileImageStorage = diskStorage({
     callback(null, `${uniqueSuffix}${ext}`);
   },
 });
+
+
 
 export class LoginDto {
   @IsNotEmpty()
@@ -253,6 +260,14 @@ const errors = await validate(dto); // REMOVE transform: true
     throw new InternalServerErrorException('Failed to create user');
   }
 }
+
+
+@Get('temp/:filename')
+downloadTempImage(@Param('filename') filename: string, @Res() res: Response) {
+  const filePath = join('/tmp', filename);
+  res.sendFile(filePath);
+}
+
 
   @Patch(':id')
   @UsePipes(new ValidationPipe())

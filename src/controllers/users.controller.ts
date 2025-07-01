@@ -206,26 +206,45 @@ async createUser(
   @UploadedFile() profileImage: Express.Multer.File,
   @Body() body: any,
 ) {
+  // Convert age to number
   body.age = +body.age;
-  const dto = plainToInstance(CreateUserDto, body);
-  const errors = await validate(dto);
 
+  // Transform plain object to DTO instance
+  const dto = plainToInstance(CreateUserDto, body);
+
+  // Validate DTO
+  const errors = await validate(dto);
   if (errors.length > 0) {
-    const messages = errors.flatMap(err =>
-      Object.values(err.constraints || {})
-    );
+    const messages = errors.flatMap(err => Object.values(err.constraints || {}));
     throw new BadRequestException(messages);
   }
-  const { countryCode, phone, name, email, age, password, role } = dto;
-  const existingUser = await this.userRepository.findOne({ where: { phone } });
+
+  // Destructure and sanitize inputs
+  const {
+    countryCode,
+    phone,
+    name,
+    email,
+    age,
+    password,
+    role,
+  } = dto;
+
+  const trimmedPhone = String(phone).trim();
+
+  // Find existing user by phone
+  const existingUser = await this.userRepository.findOne({ where: { phone: trimmedPhone } });
+
   if (!existingUser) {
     throw new BadRequestException('User with this phone number does not exist');
   }
+
+  // Update user fields
   existingUser.countryCode = countryCode;
   existingUser.name = name;
   existingUser.email = email;
   existingUser.age = age;
-  existingUser.password = password;
+  existingUser.password = password; 
   existingUser.role = role || existingUser.role;
 
   if (profileImage?.filename) {
@@ -234,6 +253,7 @@ async createUser(
 
   try {
     await this.userRepository.save(existingUser);
+
     return {
       status: 'success',
       message: 'User updated successfully',
@@ -247,6 +267,7 @@ async createUser(
       },
     };
   } catch (error) {
+    console.error('Update user error:', error);
     throw new InternalServerErrorException('Failed to update user');
   }
 }

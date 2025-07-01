@@ -206,9 +206,9 @@ async createUser(
   @UploadedFile() profileImage: Express.Multer.File,
   @Body() body: any,
 ) {
-  body.age = +body.age; // convert to number
+  body.age = +body.age;
   const dto = plainToInstance(CreateUserDto, body);
-const errors = await validate(dto); // REMOVE transform: true
+  const errors = await validate(dto);
 
   if (errors.length > 0) {
     const messages = errors.flatMap(err =>
@@ -216,43 +216,41 @@ const errors = await validate(dto); // REMOVE transform: true
     );
     throw new BadRequestException(messages);
   }
-
   const { countryCode, phone, name, email, age, password, role } = dto;
-
   const existingUser = await this.userRepository.findOne({ where: { phone } });
-  // if (existingUser) {
-  //   throw new BadRequestException('User with this phone number already exists');
-  // }
+  if (!existingUser) {
+    throw new BadRequestException('User with this phone number does not exist');
+  }
+  existingUser.countryCode = countryCode;
+  existingUser.name = name;
+  existingUser.email = email;
+  existingUser.age = age;
+  existingUser.password = password;
+  existingUser.role = role || existingUser.role;
 
-  const user = this.userRepository.create({
-    countryCode,
-    phone,
-    name,
-    email,
-    age,
-    password,
-    role: role || UserRole.PATIENT,
-    profileImage: profileImage?.filename,
-  });
+  if (profileImage?.filename) {
+    existingUser.profileImage = profileImage.filename;
+  }
 
   try {
-    await this.userRepository.save(user);
+    await this.userRepository.save(existingUser);
     return {
       status: 'success',
-      message: 'User created successfully',
+      message: 'User updated successfully',
       data: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        profileImage: user.profileImage,
+        id: existingUser.id,
+        name: existingUser.name,
+        email: existingUser.email,
+        phone: existingUser.phone,
+        role: existingUser.role,
+        profileImage: existingUser.profileImage,
       },
     };
   } catch (error) {
-    throw new InternalServerErrorException('Failed to create user');
+    throw new InternalServerErrorException('Failed to update user');
   }
 }
+
 
   @Patch(':id')
   @UsePipes(new ValidationPipe())

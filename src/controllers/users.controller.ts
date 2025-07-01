@@ -414,6 +414,7 @@ async sendOtp(@Body() sendOtpDto: SendOtpDto) {
 
     await this.userRepository.save(user);
 
+    
     return {
       status: 'success',
       message: 'OTP sent successfully',

@@ -239,6 +239,9 @@ async createUser(
     throw new BadRequestException('User with this phone number does not exist');
   }
 
+
+
+  
   // Update user fields
   existingUser.countryCode = countryCode;
   existingUser.name = name;

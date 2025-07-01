@@ -111,7 +111,7 @@ export class UpdateUserDto {
 }
 
 const profileImageStorage = diskStorage({
-  destination: './uploads/profile-images',
+  destination: '/tmp', // ✅ TEMP directory for Vercel or similar
   filename: (req, file, callback) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const ext = extname(file.originalname);

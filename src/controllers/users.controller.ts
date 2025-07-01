@@ -405,7 +405,7 @@ async sendOtp(@Body() sendOtpDto: SendOtpDto) {
     };
   } catch (error) {
     if (error instanceof BadRequestException) {
-      throw error; // Re-throw the BadRequestException
+      throw error; // Re-throw the BadRequestExceptionprofil
     }
     throw new InternalServerErrorException('Failed to send OTP');
   }
@@ -475,10 +475,11 @@ async loginUser(@Body() loginDto: LoginDto) {
       throw new NotFoundException('User not found with this phone or email');
     }
 
-    const isPhone = /^\d{10}$/.test(identifier);
-    if (isPhone && !user.phoneVerified) {
-      throw new BadRequestException('Phone number is not verified');
-    }
+    
+    // const isPhone = /^\d{10}$/.test(identifier);
+    // if (isPhone && !user.phoneVerified) {
+    //   throw new BadRequestException('Phone number is not verified');
+    // }
 
     // For hashed password, use bcrypt.compare()
     const isMatch = user.password === password;

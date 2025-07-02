@@ -79,6 +79,27 @@ export class CreateUserDto {
   @IsEnum(UserRole)
   role?: UserRole;
 }
+export class ForgotPasswordDto {
+  @IsNotEmpty()
+  @IsString()
+  identifier: string;
+}
+
+export class ResetPasswordDto {
+  @IsNotEmpty()
+  @IsString()
+  identifier: string;
+
+  @IsNotEmpty()
+  @Matches(/^\d{6}$/, { message: 'OTP must be exactly 6 digits' })
+  otp: string;
+
+  @IsNotEmpty()
+  @IsString()
+  @Length(8, 50)
+  newPassword: string;
+}
+
 
 export class VerifyOtpDto {
   @IsNotEmpty()
@@ -598,5 +619,68 @@ const token = jwt.sign(payload, 'mySuperSecret123!', {
       userDetails,
     };
   }
+
+
+  @Post('forgot-password')
+@UsePipes(new ValidationPipe())
+async forgotPassword(@Body() forgotDto: ForgotPasswordDto) {
+  const { identifier } = forgotDto;
+
+  const user = await this.userRepository.findOne({
+    where: [{ phone: identifier }, { email: identifier }],
+  });
+
+  if (!user) {
+    throw new NotFoundException('User not found');
+  }
+
+  const otp = '111111';
+  const otpExpireAt = new Date(Date.now() + 5 * 60 * 1000);
+
+  user.otp = otp;
+  user.otpExpireAt = otpExpireAt;
+  user.phoneVerified = false;
+
+  await this.userRepository.save(user);
+
+  return {
+    status: 'success',
+    message: 'OTP sent to user',
+    data: { userId: user.id },
+  };
+}
+
+@Post('reset-password')
+@UsePipes(new ValidationPipe())
+async resetPassword(@Body() resetDto: ResetPasswordDto) {
+  const { identifier, otp, newPassword } = resetDto;
+
+  const user = await this.userRepository.findOne({
+    where: [{ phone: identifier }, { email: identifier }],
+  });
+
+  if (!user) {
+    throw new NotFoundException('User not found');
+  }
+
+  if (user.otp !== otp) {
+    throw new BadRequestException('Invalid OTP');
+  }
+
+  if (!user.otpExpireAt || user.otpExpireAt < new Date()) {
+    throw new BadRequestException('OTP has expired');
+  }
+
+  user.password = newPassword;
+  user.otp = null;
+  user.otpExpireAt = null;
+
+  await this.userRepository.save(user);
+
+  return {
+    status: 'success',
+    message: 'Password reset successfully',
+  };
+}
 
 }

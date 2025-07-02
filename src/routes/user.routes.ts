@@ -153,6 +153,29 @@ router.post(
   })
 );
 
+router.post(
+  "/forgot-password",
+  [body("identifier").isString().notEmpty()],
+  wrapAsync(async (req: Request, res: Response) => {
+    const result = await usersController.forgotPassword(req.body);
+    res.json(result);
+  })
+);
+
+router.post(
+  "/reset-password",
+  [
+    body("identifier").isString().notEmpty(),
+    body("otp").isString().isLength({ min: 6, max: 6 }),
+    body("newPassword").isLength({ min: 8 }),
+  ],
+  wrapAsync(async (req: Request, res: Response) => {
+    const result = await usersController.resetPassword(req.body);
+    res.json(result);
+  })
+);
+
+
 // Error handling middleware
 router.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error(err);

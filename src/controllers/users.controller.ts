@@ -23,6 +23,7 @@ import { UseInterceptors, UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { cloudinaryStorage } from '../utils/cloudinary.storage';
 import {
   IsNotEmpty,
   IsString,
@@ -209,92 +210,85 @@ export class UsersController {
       throw new NotFoundException('User not found');
     }
   }
-
- @Post()
-@UseInterceptors(FileInterceptor('profileImage', {
-  storage: profileImageStorage,
-  fileFilter: (req, file, callback) => {
-    if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
-      return callback(new Error('Only image files are allowed!'), false);
-    }
-    callback(null, true);
-  },
-  limits: {
-    fileSize: 1024 * 1024 * 5,
-  },
-}))
-async createUser(
-  @UploadedFile() profileImage: Express.Multer.File,
-  @Body() body: any,
-) {
-  // Convert age to number
-  body.age = +body.age;
-
-  // Transform plain object to DTO instance
-  const dto = plainToInstance(CreateUserDto, body);
-
-  // Validate DTO
-  const errors = await validate(dto);
-  if (errors.length > 0) {
-    const messages = errors.flatMap(err => Object.values(err.constraints || {}));
-    throw new BadRequestException(messages);
-  }
-
-  // Destructure and sanitize inputs
-  const {
-    countryCode,
-    phone,
-    name,
-    email,
-    age,
-    password,
-    role,
-  } = dto;
-
-  const trimmedPhone = String(phone).trim();
-
-  // Find existing user by phone
-  const existingUser = await this.userRepository.findOne({ where: { phone: trimmedPhone } });
-
-  if (!existingUser) {
-    throw new BadRequestException('User with this phone number does not exist');
-  }
-
-
-
-  
-  // Update user fields
-  existingUser.countryCode = countryCode;
-  existingUser.name = name;
-  existingUser.email = email;
-  existingUser.age = age;
-  existingUser.password = password; 
-  existingUser.role = role || existingUser.role;
-
-  if (profileImage?.filename) {
-    existingUser.profileImage = profileImage.filename;
-  }
-
-  try {
-    await this.userRepository.save(existingUser);
-
-    return {
-      status: 'success',
-      message: 'User updated successfully',
-      data: {
-        id: existingUser.id,
-        name: existingUser.name,
-        email: existingUser.email,
-        phone: existingUser.phone,
-        role: existingUser.role,
-        profileImage: existingUser.profileImage,
+@Post()
+  @UseInterceptors(
+    FileInterceptor('profileImage', {
+      storage: cloudinaryStorage,
+      fileFilter: (req, file, callback) => {
+        if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
+          return callback(new Error('Only image files are allowed!'), false);
+        }
+        callback(null, true);
       },
-    };
-  } catch (error) {
-    console.error('Update user error:', error);
-    throw new InternalServerErrorException('Failed to update user');
+      limits: {
+        fileSize: 1024 * 1024 * 5, // 5MB
+      },
+    }),
+  )
+  async createUser(
+    @UploadedFile() profileImage: Express.Multer.File,
+    @Body() body: any,
+  ) {
+    body.age = +body.age;
+
+    const dto = plainToInstance(CreateUserDto, body);
+    const errors = await validate(dto);
+    if (errors.length > 0) {
+      const messages = errors.flatMap(err => Object.values(err.constraints || {}));
+      throw new BadRequestException(messages);
+    }
+
+    const {
+      countryCode,
+      phone,
+      name,
+      email,
+      age,
+      password,
+      role,
+    } = dto;
+
+    const trimmedPhone = String(phone).trim();
+
+    const existingUser = await this.userRepository.findOne({
+      where: { phone: trimmedPhone },
+    });
+
+    if (!existingUser) {
+      throw new BadRequestException('User with this phone number does not exist');
+    }
+
+    existingUser.countryCode = countryCode;
+    existingUser.name = name;
+    existingUser.email = email;
+    existingUser.age = age;
+    existingUser.password = password;
+    existingUser.role = role || existingUser.role;
+
+    if (profileImage?.path) {
+      existingUser.profileImage = profileImage.path; // ✅ Cloudinary URL
+    }
+
+    try {
+      await this.userRepository.save(existingUser);
+
+      return {
+        status: 'success',
+        message: 'User updated successfully',
+        data: {
+          id: existingUser.id,
+          name: existingUser.name,
+          email: existingUser.email,
+          phone: existingUser.phone,
+          role: existingUser.role,
+          profileImage: existingUser.profileImage,
+        },
+      };
+    } catch (error) {
+      console.error('Update user error:', error);
+      throw new InternalServerErrorException('Failed to update user');
+    }
   }
-}
 
 
   @Patch(':id')

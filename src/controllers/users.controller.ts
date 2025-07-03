@@ -92,10 +92,6 @@ export class ResetPasswordDto {
   identifier: string;
 
   @IsNotEmpty()
-  @Matches(/^\d{6}$/, { message: 'OTP must be exactly 6 digits' })
-  otp: string;
-
-  @IsNotEmpty()
   @IsString()
   @Length(8, 50)
   newPassword: string;
@@ -108,8 +104,8 @@ export class VerifyOtpDto {
   countryCode: string;
 
   @IsNotEmpty()
-  @Matches(/^\d{10}$/, { message: 'Phone number must be exactly 10 digits' })
   phone: string;
+
 
   @IsNotEmpty()
   @Matches(/^\d{6}$/, { message: 'OTP must be exactly 6 digits' })
@@ -456,7 +452,11 @@ async sendOtp(@Body() sendOtpDto: SendOtpDto) {
 
     try {
       const user = await this.userRepository.findOne({
-        where: { phone },
+        where:[
+        { phone: phone },
+        { email: phone },
+      ],
+        
       });
 
       if (!user) {
@@ -647,7 +647,7 @@ async forgotPassword(@Body() forgotDto: ForgotPasswordDto) {
 @Post('reset-password')
 @UsePipes(new ValidationPipe())
 async resetPassword(@Body() resetDto: ResetPasswordDto) {
-  const { identifier, otp, newPassword } = resetDto;
+  const { identifier, newPassword } = resetDto;
 
   const user = await this.userRepository.findOne({
     where: [{ phone: identifier }, { email: identifier }],
@@ -657,18 +657,7 @@ async resetPassword(@Body() resetDto: ResetPasswordDto) {
     throw new NotFoundException('User not found');
   }
 
-  if (user.otp !== otp) {
-    throw new BadRequestException('Invalid OTP');
-  }
-
-  if (!user.otpExpireAt || user.otpExpireAt < new Date()) {
-    throw new BadRequestException('OTP has expired');
-  }
-
   user.password = newPassword;
-  user.otp = null;
-  user.otpExpireAt = null;
-
   await this.userRepository.save(user);
 
   return {
@@ -676,5 +665,7 @@ async resetPassword(@Body() resetDto: ResetPasswordDto) {
     message: 'Password reset successfully',
   };
 }
+
+
 
 }

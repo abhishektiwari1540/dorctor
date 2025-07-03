@@ -166,7 +166,6 @@ router.post(
   "/reset-password",
   [
     body("identifier").isString().notEmpty(),
-    body("otp").isString().isLength({ min: 6, max: 6 }),
     body("newPassword").isLength({ min: 8 }),
   ],
   wrapAsync(async (req: Request, res: Response) => {
@@ -174,6 +173,7 @@ router.post(
     res.json(result);
   })
 );
+
 
 
 // Error handling middleware
